@@ -104,6 +104,48 @@ case $SCHEDULE_TYPE in
         
         # Option 7: Run on first Monday of next month
         # NEXT_TIME="$(date -d 'next month first Monday' +%Y-%m-%d)T09:00:00"
+
+        # Option 8: Run on last day of next month at midnight
+        #
+        # The line at the bottom of this option looks dense, so here is what
+        # each piece does (read from the inside out):
+        #
+        #   date +%Y-%m-01
+        #       The `date` command with a format string.
+        #       %Y = 4-digit year, %m = 2-digit month, "01" is the literal text "01".
+        #       Result: today's year and month with the day forced to the 1st.
+        #       Example on May 8, 2026  →  "2026-05-01"
+        #
+        #   $(...)
+        #       Bash command substitution. Runs the command inside and drops
+        #       its output back into the surrounding string.
+        #
+        #   date -d "DATE +2 months -1 day"
+        #       The -d flag means "don't use the current time, use the string
+        #       I'm giving you." GNU date supports relative arithmetic inside
+        #       that string ("+2 months", "-1 day", etc.) and applies it
+        #       left to right.
+        #       Example: "2026-05-01 +2 months -1 day"
+        #          +2 months  →  "2026-07-01"
+        #          -1 day     →  "2026-06-30"
+        #
+        #   +%Y-%m-%d
+        #       Format the resulting date as YYYY-MM-DD  (e.g. "2026-06-30").
+        #
+        #   T00:00:00
+        #       Literal text appended to the end. SLURM's --begin flag wants
+        #       ISO 8601 format: YYYY-MM-DDTHH:MM:SS. The "T" separates the
+        #       date from the time, and 00:00:00 is midnight.
+        #
+        # Final value of NEXT_TIME on May 8, 2026:  "2026-06-30T00:00:00"
+        #
+        # Why not the simpler `date -d 'next month'`? It's broken on short months.
+        # From Jan 31 it gives March 3 (skips February entirely, because Feb 31
+        # doesn't exist, so it rolls forward 3 days into March). From May 31 it
+        # gives July 1 (skips June). Doing the math from day 01 — which always
+        # exists in every month — avoids that trap.
+        #
+        # NEXT_TIME="$(date -d "$(date +%Y-%m-01) +2 months -1 day" +%Y-%m-%d)T00:00:00"
         ;;
     
     *)
